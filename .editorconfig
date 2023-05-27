@@ -1,0 +1,17 @@
+root = true
+
+[*]
+end_of_line = lf
+charset = utf-8
+indent_style = tab
+indent_size = 4
+
+[justfile,Dockerfile,*.md,*.sql,*.nix,*.env*]
+indent_size = 8
+
+[*.toml]
+indent_size = 2
+
+[*.json,*.yml,*.yaml]
+indent_style = tab
+indent_size = 2
