@@ -47,12 +47,12 @@ fn main() -> Result<()> {
 
 		let start = Instant::now();
 		let mut tokenizer = Tokenizer::new(input.chars().collect());
-		let mut token = tokenizer.next_token()?;
+		let mut token = tokenizer.step()?;
 
 		let mut start_token = Instant::now();
 		while token != Token::Eof {
 			println!("{token:?} ({:?})", start_token.elapsed());
-			token = tokenizer.next_token()?;
+			token = tokenizer.step()?;
 			start_token = Instant::now();
 		}
 

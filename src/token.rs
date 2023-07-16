@@ -1,3 +1,5 @@
+use crate::parser::Precedence;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Token {
 	/// `=`
@@ -93,6 +95,10 @@ impl Token {
 
 	pub fn illegal(illegal: impl Into<String>) -> Self {
 		Self::Illegal(illegal.into())
+	}
+
+	pub fn precedence(&self) -> Precedence {
+		self.into()
 	}
 }
 

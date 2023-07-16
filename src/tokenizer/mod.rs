@@ -6,7 +6,6 @@ use {
 #[cfg(test)]
 mod tests;
 
-#[derive(Debug)]
 pub struct Tokenizer {
 	pub(crate) input: Vec<char>,
 	pub(crate) position: usize,
@@ -16,27 +15,27 @@ pub struct Tokenizer {
 
 /// public methods
 impl Tokenizer {
-	#[tracing::instrument(level = "TRACE")]
+	#[tracing::instrument(level = "TRACE", ret)]
 	pub fn new(input: Vec<char>) -> Self {
 		let mut tokenizer = Self { input, position: 0, read_position: 0, char: '\0' };
-		tokenizer.read_char();
+		tokenizer.next_char();
 		tokenizer
 	}
 
-	#[tracing::instrument(level = "DEBUG", skip(self), fields(char = %self.char), ret)]
-	pub fn next_token(&mut self) -> Result<Token> {
+	#[tracing::instrument(level = "DEBUG", ret)]
+	pub fn step(&mut self) -> Result<Token> {
 		self.skip_whitespace();
 
 		let token = match self.char {
 			'=' if matches!(self.peek_char(), Some('=')) => {
-				self.read_char();
+				self.next_char();
 				Token::Equal
 			}
 			'=' => Token::Assign,
 			'+' => Token::Plus,
 			'-' => Token::Minus,
 			'!' if matches!(self.peek_char(), Some('=')) => {
-				self.read_char();
+				self.next_char();
 				Token::NotEqual
 			}
 			'!' => Token::Bang,
@@ -56,19 +55,15 @@ impl Tokenizer {
 			char => Token::illegal(char),
 		};
 
-		self.read_char();
+		self.next_char();
 		Ok(token)
 	}
 }
 
 /// private methods
 impl Tokenizer {
-	#[tracing::instrument(
-		level = "DEBUG",
-		skip(self),
-		fields(reading, at = %self.read_position)
-	)]
-	fn read_char(&mut self) {
+	#[tracing::instrument(level = "DEBUG", fields(reading))]
+	fn next_char(&mut self) {
 		match record!("reading", self.input.get(self.read_position)) {
 			// We either just started parsing or we are done.
 			None => self.char = '\0',
@@ -79,17 +74,17 @@ impl Tokenizer {
 		self.read_position += 1;
 	}
 
-	#[tracing::instrument(level = "DEBUG", skip(self), ret)]
+	#[tracing::instrument(level = "TRACE", ret)]
 	fn peek_char(&self) -> Option<char> {
 		self.input.get(self.read_position).copied()
 	}
 
-	#[tracing::instrument(level = "DEBUG", skip(self), ret)]
+	#[tracing::instrument(level = "TRACE", ret)]
 	fn read_identifier(&mut self) -> Token {
 		let position = self.position;
 
 		while self.is_letter() {
-			self.read_char();
+			self.next_char();
 		}
 
 		let ident = String::from_iter(&self.input[position..self.position]);
@@ -106,12 +101,12 @@ impl Tokenizer {
 		}
 	}
 
-	#[tracing::instrument(level = "DEBUG", skip(self), ret)]
+	#[tracing::instrument(level = "TRACE", ret)]
 	fn read_integer(&mut self) -> Result<Token> {
 		let position = self.position;
 
 		while self.is_digit() {
-			self.read_char();
+			self.next_char();
 		}
 
 		let int = String::from_iter(&self.input[position..self.position])
@@ -121,20 +116,27 @@ impl Tokenizer {
 		Ok(Token::Int(int))
 	}
 
-	#[tracing::instrument(level = "TRACE", skip(self))]
+	#[tracing::instrument(level = "TRACE")]
 	fn skip_whitespace(&mut self) {
 		while self.char.is_whitespace() {
-			self.read_char();
+			self.next_char();
 		}
 	}
 
-	#[tracing::instrument(level = "TRACE", skip(self), fields(char = %self.char), ret)]
+	#[tracing::instrument(level = "TRACE", ret)]
 	fn is_letter(&self) -> bool {
 		self.char.is_alphabetic() || self.char == '_'
 	}
 
-	#[tracing::instrument(level = "TRACE", skip(self), fields(char = %self.char), ret)]
+	#[tracing::instrument(level = "TRACE", ret)]
 	fn is_digit(&self) -> bool {
 		self.char.is_digit(10)
+	}
+}
+
+impl std::fmt::Debug for Tokenizer {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		let Tokenizer { position, read_position, char, .. } = self;
+		write!(f, "{{ position: {position}, read_position: {read_position}, char: `{char}` }}")
 	}
 }

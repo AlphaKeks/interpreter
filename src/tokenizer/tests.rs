@@ -21,7 +21,7 @@ fn simple() -> Result<()> {
 	];
 
 	for expected in expected {
-		assert_eq!(expected, tokenizer.next_token()?);
+		assert_eq!(expected, tokenizer.step()?);
 	}
 
 	Ok(())
@@ -75,7 +75,7 @@ fn basic_program() -> Result<()> {
 	];
 
 	for expected in expected {
-		assert_eq!(expected, tokenizer.next_token()?);
+		assert_eq!(expected, tokenizer.step()?);
 	}
 
 	Ok(())
@@ -166,7 +166,7 @@ fn more_tokens() -> Result<()> {
 	];
 
 	for expected in expected {
-		assert_eq!(expected, tokenizer.next_token()?);
+		assert_eq!(expected, tokenizer.step()?);
 	}
 
 	Ok(())

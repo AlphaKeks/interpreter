@@ -20,7 +20,7 @@ pub fn init() {
 		.with_timer(timer)
 		.with_file(true)
 		.with_line_number(true)
-		.with_span_events(FmtSpan::ACTIVE)
+		.with_span_events(FmtSpan::ENTER)
 		.with_env_filter(filter)
 		.init();
 
