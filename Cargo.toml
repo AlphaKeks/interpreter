@@ -15,4 +15,5 @@ time = { version = "0.3.23", features = ["macros"] }
 clap = { version = "4.3.12", features = ["derive"] }
 
 [dev-dependencies]
+ctor = "0.2.4"
 pretty_assertions = "1.4.0"
