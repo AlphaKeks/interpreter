@@ -2,7 +2,10 @@ use {
 	clap::Parser,
 	color_eyre::{eyre::Context, Result},
 	interpreter::{Token, Tokenizer},
-	std::io::{stdin, stdout, Write},
+	std::{
+		io::{stdin, stdout, Write},
+		time::Instant,
+	},
 };
 
 #[derive(Debug, Parser)]
@@ -42,13 +45,18 @@ fn main() -> Result<()> {
 			break;
 		}
 
+		let start = Instant::now();
 		let mut tokenizer = Tokenizer::new(input.chars().collect());
 		let mut token = tokenizer.next_token()?;
 
+		let mut start_token = Instant::now();
 		while token != Token::Eof {
-			println!("{token:?}");
+			println!("{token:?} ({:?})", start_token.elapsed());
 			token = tokenizer.next_token()?;
+			start_token = Instant::now();
 		}
+
+		println!("took {:?}", start.elapsed());
 	}
 
 	Ok(())
