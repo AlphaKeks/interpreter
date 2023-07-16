@@ -53,7 +53,7 @@ impl Tokenizer {
 			'\0' => Token::Eof,
 			_ if self.is_digit() => return self.read_integer(),
 			_ if self.is_letter() => return Ok(self.read_identifier()),
-			char => Token::Illegal(char.to_string()),
+			char => Token::illegal(char),
 		};
 
 		self.read_char();

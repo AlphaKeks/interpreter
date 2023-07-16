@@ -82,6 +82,20 @@ pub enum Token {
 	Illegal(String),
 }
 
+impl Token {
+	pub fn int(int: impl Into<i64>) -> Self {
+		Self::Int(int.into())
+	}
+
+	pub fn ident(ident: impl Into<String>) -> Self {
+		Self::Ident(ident.into())
+	}
+
+	pub fn illegal(illegal: impl Into<String>) -> Self {
+		Self::Illegal(illegal.into())
+	}
+}
+
 impl std::fmt::Display for Token {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
