@@ -1,18 +1,34 @@
 use {
-	clap::Parser,
+	clap::{Parser as _, ValueEnum},
 	color_eyre::{eyre::Context, Result},
-	interpreter::{Token, Tokenizer},
+	interpreter::{Parser, Token, Tokenizer},
 	std::{
 		io::{stdin, stdout, Write},
 		time::Instant,
 	},
 };
 
-#[derive(Debug, Parser)]
+#[derive(Debug, clap::Parser)]
 pub struct Args {
 	/// Print debug information
 	#[arg(long)]
-	pub debug: bool,
+	debug: bool,
+
+	#[arg(long)]
+	#[clap(default_value = "parser")]
+	mode: Mode,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum Mode {
+	Tokenizer,
+	Parser,
+}
+
+impl std::fmt::Display for Mode {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{self:?}")
+	}
 }
 
 const PROMPT: &str = "=> ";
@@ -46,15 +62,33 @@ fn main() -> Result<()> {
 		}
 
 		let start = Instant::now();
-		let mut tokenizer = Tokenizer::new(input.chars().collect());
-		let mut token = tokenizer.step()?;
+		let input = input.chars().collect();
+		match args.mode {
+			Mode::Tokenizer => {
+				let mut tokenizer = Tokenizer::new(input);
+				let mut token = tokenizer.step()?;
 
-		let mut start_token = Instant::now();
-		while token != Token::Eof {
-			println!("{token:?} ({:?})", start_token.elapsed());
-			token = tokenizer.step()?;
-			start_token = Instant::now();
-		}
+				let mut start_token = Instant::now();
+				while token != Token::Eof {
+					println!("{token:?} ({:?})", start_token.elapsed());
+					token = tokenizer.step()?;
+					start_token = Instant::now();
+				}
+			}
+
+			Mode::Parser => {
+				let tokenizer = Tokenizer::new(input);
+				let mut parser = Parser::new(tokenizer)?;
+				let program = parser.parse_program();
+
+				if !parser.errors.is_empty() {
+					eprintln!("Failed to parse.\n{:?}", parser.errors);
+					continue;
+				}
+
+				println!("{program:#?}");
+			}
+		};
 
 		println!("took {:?}", start.elapsed());
 	}

@@ -19,7 +19,7 @@ pub struct Parser {
 	tokenizer: Tokenizer,
 	current_token: Token,
 	peek_token: Token,
-	errors: Vec<color_eyre::Report>,
+	pub errors: Vec<color_eyre::Report>,
 }
 
 impl Parser {
