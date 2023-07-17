@@ -1,5 +1,5 @@
 [package]
-name = "interpreter"
+name = "monkey"
 version = "0.1.0"
 authors = ["AlphaKeks <alphakeks@dawn.sh>"]
 edition = "2021"

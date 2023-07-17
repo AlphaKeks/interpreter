@@ -1,7 +1,7 @@
 use {
 	clap::{Parser as _, ValueEnum},
 	color_eyre::{eyre::Context, Result},
-	interpreter::{Parser, Token, Tokenizer},
+	monkey::{Parser, Token, Tokenizer},
 	std::{
 		io::{stdin, stdout, Write},
 		time::Instant,
@@ -38,7 +38,7 @@ fn main() -> Result<()> {
 
 	let args = Args::parse();
 	if args.debug {
-		interpreter::tracing::init();
+		monkey::tracing::init();
 	}
 
 	println!("Hello! This is the Monkey programming language!");

@@ -254,19 +254,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce23b50ad8242c51a442f3ff322d56b02f08852c77e4c0b4d3fd684abc89c683"
 
 [[package]]
-name = "interpreter"
-version = "0.1.0"
-dependencies = [
- "clap",
- "color-eyre",
- "ctor",
- "pretty_assertions",
- "time",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "is-terminal"
 version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -329,6 +316,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e7810e0be55b428ada41041c41f32c9f1a42817901b4ccf45fa3d4b6561e74c7"
 dependencies = [
  "adler",
+]
+
+[[package]]
+name = "monkey"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "color-eyre",
+ "ctor",
+ "pretty_assertions",
+ "time",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
