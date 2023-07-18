@@ -12,6 +12,12 @@ pub use ast::{Expression, Program, Statement};
 pub mod parser;
 pub use parser::Parser;
 
+pub mod value;
+pub use value::Value;
+
+pub mod eval;
+pub use eval::Eval;
+
 #[cfg(test)]
 mod test_setup;
 

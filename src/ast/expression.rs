@@ -5,7 +5,6 @@ use {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expression {
-	Null,
 	Int(i64),
 	Bool(bool),
 	Identifier(String),
@@ -53,20 +52,13 @@ impl From<&str> for Expression {
 
 impl From<String> for Expression {
 	fn from(value: String) -> Self {
-		Self::Identifier(value)
-	}
-}
-
-impl From<Option<()>> for Expression {
-	fn from(_: Option<()>) -> Self {
-		Self::Null
+		Self::Identifier(value.to_owned())
 	}
 }
 
 impl std::fmt::Display for Expression {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
-			Expression::Null => write!(f, "null"),
 			Expression::Int(int) => write!(f, "{int}"),
 			Expression::Bool(bool) => write!(f, "{bool}"),
 			Expression::Identifier(identifier) => write!(f, "{identifier}"),

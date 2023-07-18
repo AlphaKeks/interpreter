@@ -214,7 +214,6 @@ impl Parser {
 			});
 		}
 
-		dbg!(&self);
 		assert_token!(peek, self, Token::RightParen);
 
 		Ok(identifiers)
