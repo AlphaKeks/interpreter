@@ -5,7 +5,7 @@ use {
 	},
 	color_eyre::{eyre::bail as yeet, Result},
 	pretty_assertions::assert_eq,
-	std::rc::Rc,
+	std::{collections::HashMap, rc::Rc},
 };
 
 #[test]
@@ -87,6 +87,112 @@ fn eval_bool_expression() -> Result<()> {
 
 		let evaluated = program.eval(Rc::clone(&environment))?;
 		assert_eq!(evaluated, Value::Bool(value));
+	}
+
+	Ok(())
+}
+
+#[test]
+fn eval_string_expression() -> Result<()> {
+	let input = "\"Hello, world!\"";
+
+	let tokenizer = Tokenizer::new(input.chars().collect());
+	let mut parser = Parser::new(tokenizer)?;
+	let program = parser.parse_program();
+	let environment = Rc::new(Environment::default());
+	let errors = parser.errors.len();
+
+	assert_eq!(errors, 0, "Parser had {errors} errors: {:#?}", parser.errors);
+	assert_eq!(program.statements.len(), 1);
+
+	let evaluated = program.eval(Rc::clone(&environment))?;
+	assert_eq!(evaluated, Value::String(String::from("Hello, world!")));
+
+	Ok(())
+}
+
+#[test]
+fn eval_array_expression() -> Result<()> {
+	let input = "[1, 2 * 2, 3 + 3]";
+
+	let tokenizer = Tokenizer::new(input.chars().collect());
+	let mut parser = Parser::new(tokenizer)?;
+	let program = parser.parse_program();
+	let environment = Rc::new(Environment::default());
+	let errors = parser.errors.len();
+
+	assert_eq!(errors, 0, "Parser had {errors} errors: {:#?}", parser.errors);
+	assert_eq!(program.statements.len(), 1);
+
+	let evaluated = program.eval(Rc::clone(&environment))?;
+	assert_eq!(evaluated, Value::Array(vec![Value::Int(1), Value::Int(4), Value::Int(6)]));
+
+	Ok(())
+}
+
+#[test]
+fn eval_map_expression() -> Result<()> {
+	let input = r#"
+		let two = "two";
+		{
+			"one": 10 - 9,
+			"two": 1 + 1,
+			"thr" + "ee": 6 / 2
+		}
+	"#;
+
+	let tokenizer = Tokenizer::new(input.chars().collect());
+	let mut parser = Parser::new(tokenizer)?;
+	let program = parser.parse_program();
+	let environment = Rc::new(Environment::default());
+	let errors = parser.errors.len();
+
+	assert_eq!(errors, 0, "Parser had {errors} errors: {:#?}", parser.errors);
+	assert_eq!(program.statements.len(), 2);
+
+	let evaluated = program.eval(Rc::clone(&environment))?;
+	assert_eq!(
+		evaluated,
+		Value::Map(HashMap::from_iter([
+			(String::from("one"), Value::Int(1)),
+			(String::from("two"), Value::Int(2)),
+			(String::from("three"), Value::Int(3)),
+		]))
+	);
+
+	Ok(())
+}
+
+#[test]
+fn eval_index_expression() -> Result<()> {
+	let test_cases = [
+		("[1, 2, 3][0]", Value::Int(1)),
+		("[1, 2, 3][1]", Value::Int(2)),
+		("[1, 2, 3][2]", Value::Int(3)),
+		("let i = 0; [1][i];", Value::Int(1)),
+		("[1, 2, 3][1 + 1];", Value::Int(3)),
+		("let myArray = [1, 2, 3]; myArray[2];", Value::Int(3)),
+		("let myArray = [1, 2, 3]; myArray[0] + myArray[1] + myArray[2];", Value::Int(6)),
+		("let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i]", Value::Int(2)),
+		("[1, 2, 3][3]", Value::Null),
+		("[1, 2, 3][-1]", Value::Int(3)),
+		("{\"foo\": 5}[\"foo\"]", Value::Int(5)),
+		("{\"foo\": 5}[\"bar\"]", Value::Null),
+		("let key = \"foo\"; {\"foo\": 5}[key]", Value::Int(5)),
+		("{}[\"foo\"]", Value::Null),
+	];
+
+	for (input, expected) in test_cases {
+		let tokenizer = Tokenizer::new(input.chars().collect());
+		let mut parser = Parser::new(tokenizer)?;
+		let program = parser.parse_program();
+		let environment = Rc::new(Environment::default());
+		let errors = parser.errors.len();
+
+		assert_eq!(errors, 0, "Parser had {errors} errors: {:#?}", parser.errors);
+
+		let evaluated = program.eval(Rc::clone(&environment))?;
+		assert_eq!(evaluated, expected);
 	}
 
 	Ok(())

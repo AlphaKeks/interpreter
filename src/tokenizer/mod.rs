@@ -44,12 +44,16 @@ impl Tokenizer {
 			'<' => Token::LessThan,
 			'>' => Token::GreaterThan,
 			',' => Token::Comma,
+			':' => Token::Colon,
 			';' => Token::Semicolon,
 			'(' => Token::LeftParen,
 			')' => Token::RightParen,
 			'{' => Token::LeftBrace,
 			'}' => Token::RightBrace,
+			'[' => Token::LeftBracket,
+			']' => Token::RightBracket,
 			'\0' => Token::Eof,
+			'"' => self.read_string(),
 			_ if self.is_digit() => return self.read_integer(),
 			_ if self.is_letter() => return Ok(self.read_identifier()),
 			char => Token::illegal(char),
@@ -99,6 +103,20 @@ impl Tokenizer {
 			"false" => Token::False,
 			_ => Token::Ident(ident),
 		}
+	}
+
+	#[tracing::instrument(level = "TRACE", ret)]
+	fn read_string(&mut self) -> Token {
+		let position = self.position + 1;
+
+		loop {
+			self.next_char();
+			if matches!(self.char, '"' | '\0') {
+				break;
+			}
+		}
+
+		Token::String(String::from_iter(&self.input[position..self.position]))
 	}
 
 	#[tracing::instrument(level = "TRACE", ret)]

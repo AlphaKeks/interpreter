@@ -29,9 +29,18 @@ fn simple() -> Result<()> {
 
 #[test]
 fn basic_program() -> Result<()> {
-	let input = include_str!("../../monkey/1_2.monkey")
-		.chars()
-		.collect();
+	let input = r#"
+		let five = 5;
+		let ten = 10;
+
+		let add = fn(x, y) {
+			x + y;
+		};
+
+		let result = add(five, ten);
+	"#
+	.chars()
+	.collect();
 
 	let mut tokenizer = Tokenizer::new(input);
 	let expected = [
@@ -83,9 +92,33 @@ fn basic_program() -> Result<()> {
 
 #[test]
 fn more_tokens() -> Result<()> {
-	let input = include_str!("../../monkey/1_4.monkey")
-		.chars()
-		.collect();
+	let input = r#"
+		let five = 5;
+		let ten = 10;
+
+		let add = fn(x, y) {
+			x + y;
+		};
+
+		let result = add(five, ten);
+		!-/*5;
+		5 < 10 > 5;
+
+		if (5 < 10) {
+			return true;
+		} else {
+			return false;
+		}
+
+		10 == 10;
+		10 != 9;
+		"foobar"
+		"foo bar"
+		[1, 2];
+		{"foo": "bar"}
+	"#
+	.chars()
+	.collect();
 
 	let mut tokenizer = Tokenizer::new(input);
 	let expected = [
@@ -162,6 +195,19 @@ fn more_tokens() -> Result<()> {
 		Token::NotEqual,
 		Token::Int(9),
 		Token::Semicolon,
+		Token::string("foobar"),
+		Token::string("foo bar"),
+		Token::LeftBracket,
+		Token::Int(1),
+		Token::Comma,
+		Token::Int(2),
+		Token::RightBracket,
+		Token::Semicolon,
+		Token::LeftBrace,
+		Token::string("foo"),
+		Token::Colon,
+		Token::string("bar"),
+		Token::RightBrace,
 		Token::Eof,
 	];
 

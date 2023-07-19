@@ -9,9 +9,14 @@ use {
 
 #[test]
 fn let_statements() -> Result<()> {
-	let input = include_str!("../../monkey/2_4_let.monkey")
-		.chars()
-		.collect();
+	let input = r#"
+		let x = 5;
+		let y = 10;
+		let foobar = 838383;
+	"#
+	.chars()
+	.collect();
+
 	let tokenizer = Tokenizer::new(input);
 	let mut parser = Parser::new(tokenizer)?;
 	let program = parser.parse_program();
@@ -28,9 +33,14 @@ fn let_statements() -> Result<()> {
 
 #[test]
 fn return_statements() -> Result<()> {
-	let input = include_str!("../../monkey/2_4_return.monkey")
-		.chars()
-		.collect();
+	let input = r#"
+		return 5;
+		return 10;
+		return 993322;
+	"#
+	.chars()
+	.collect();
+
 	let tokenizer = Tokenizer::new(input);
 	let mut parser = Parser::new(tokenizer)?;
 	let program = parser.parse_program();
@@ -88,6 +98,114 @@ fn boolean_literal_expression() -> Result<()> {
 		assert_eq!(errors, 0, "Parser had {errors} errors: {:#?}", parser.errors);
 		assert_eq!(program.statements.len(), 1);
 		assert_eq!(program.statements[0], Statement::Expression(expected));
+	}
+
+	Ok(())
+}
+
+#[test]
+fn string_expression() -> Result<()> {
+	let input = "\"foobar\";".chars().collect();
+	let tokenizer = Tokenizer::new(input);
+	let mut parser = Parser::new(tokenizer)?;
+	let program = parser.parse_program();
+	let errors = parser.errors.len();
+
+	assert_eq!(errors, 0, "Parser had {errors} errors: {:#?}", parser.errors);
+	assert_eq!(program.statements.len(), 1);
+	assert_eq!(
+		program.statements[0],
+		Statement::Expression(Expression::String(String::from("foobar")))
+	);
+
+	Ok(())
+}
+
+#[test]
+fn array_expression() -> Result<()> {
+	let input = "[1, 2 * 2, 3 + 3]".chars().collect();
+	let tokenizer = Tokenizer::new(input);
+	let mut parser = Parser::new(tokenizer)?;
+	let program = parser.parse_program();
+	let errors = parser.errors.len();
+
+	assert_eq!(errors, 0, "Parser had {errors} errors: {:#?}", parser.errors);
+	assert_eq!(program.statements.len(), 1);
+	assert_eq!(
+		program.statements[0],
+		Statement::Expression(Expression::Array(vec![
+			Expression::Int(1),
+			Expression::Infix {
+				operator: InfixOperator::Mul,
+				lhs: Box::new(2.into()),
+				rhs: Box::new(2.into()),
+			},
+			Expression::Infix {
+				operator: InfixOperator::Add,
+				lhs: Box::new(3.into()),
+				rhs: Box::new(3.into()),
+			}
+		]))
+	);
+
+	Ok(())
+}
+
+#[test]
+fn map_expression() -> Result<()> {
+	let test_cases = [
+		("{}", Expression::Map(Vec::new())),
+		(
+			r#"
+				{
+					"one": 1,
+					"two": 2,
+					"three": 3
+				}
+			"#,
+			Expression::Map(vec![
+				(Expression::String("one".into()), 1.into()),
+				(Expression::String("two".into()), 2.into()),
+				(Expression::String("three".into()), 3.into()),
+			]),
+		),
+		(
+			r#"
+				{
+					"one": 0 + 1,
+					"two": 10 - 8,
+					"three": 15 / 5
+				}
+			"#,
+			Expression::Map(vec![
+				(Expression::String("one".into()), Expression::Infix {
+					operator: InfixOperator::Add,
+					lhs: Box::new(0.into()),
+					rhs: Box::new(1.into()),
+				}),
+				(Expression::String("two".into()), Expression::Infix {
+					operator: InfixOperator::Sub,
+					lhs: Box::new(10.into()),
+					rhs: Box::new(8.into()),
+				}),
+				(Expression::String("three".into()), Expression::Infix {
+					operator: InfixOperator::Div,
+					lhs: Box::new(15.into()),
+					rhs: Box::new(5.into()),
+				}),
+			]),
+		),
+	];
+
+	for (input, expected) in test_cases {
+		let tokenizer = Tokenizer::new(input.chars().collect());
+		let mut parser = Parser::new(tokenizer)?;
+		let mut program = parser.parse_program();
+		let errors = parser.errors.len();
+
+		eprintln!("Parser had {errors} error(s): {:#?}", parser.errors);
+		assert_eq!(program.statements.len(), 1);
+		assert_eq!(program.statements.remove(0), Statement::Expression(expected));
 	}
 
 	Ok(())
@@ -242,6 +360,8 @@ fn operator_precedence() -> Result<()> {
 			"add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))",
 		),
 		("add(a + b + c * d / f + g)", "add((((a + b) + ((c * d) / f)) + g))"),
+		("a * [1, 2, 3, 4][b * c] * d", "((a * ([1, 2, 3, 4][(b * c)])) * d)"),
+		("add(a * b[2], b[1], 2 * [1, 2][1])", "add((a * (b[2])), (b[1]), (2 * ([1, 2][1])))"),
 	];
 
 	for (input, expected) in test_cases {
@@ -397,6 +517,33 @@ fn parsing_call_expressions() -> Result<()> {
 				rhs: Box::new(5.into()),
 			},
 		],
+	});
+
+	Ok(())
+}
+
+#[test]
+fn parsing_index_expressions() -> Result<()> {
+	let input = "my_array[1 + 1]".chars().collect();
+	let tokenizer = Tokenizer::new(input);
+	let mut parser = Parser::new(tokenizer)?;
+	let mut program = parser.parse_program();
+	let errors = parser.errors.len();
+
+	eprintln!("Parser had {errors} error(s): {:#?}", parser.errors);
+	assert_eq!(program.statements.len(), 1);
+	let statement = program.statements.remove(0);
+	let Statement::Expression(expression) = statement else {
+		yeet!("Statement was not an expression ({statement:?})");
+	};
+
+	assert_eq!(expression, Expression::Index {
+		lhs: Box::new("my_array".into()),
+		idx: Box::new(Expression::Infix {
+			operator: InfixOperator::Add,
+			lhs: Box::new(1.into()),
+			rhs: Box::new(1.into()),
+		})
 	});
 
 	Ok(())

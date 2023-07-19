@@ -325,6 +325,7 @@ dependencies = [
  "clap",
  "color-eyre",
  "ctor",
+ "lazy_static",
  "pretty_assertions",
  "time",
  "tracing",

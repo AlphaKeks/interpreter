@@ -7,12 +7,16 @@ use {
 		Expression, Program, Statement, Value,
 	},
 	color_eyre::{eyre::bail as yeet, Result},
+	std::rc::Rc,
 };
 
 mod environment;
-use std::rc::Rc;
+use std::collections::HashMap;
 
 pub use environment::Environment;
+
+pub mod builtins;
+use builtins::BUILTINS;
 
 pub trait Eval {
 	fn eval(self, environment: Rc<Environment>) -> Result<Value>;
@@ -42,6 +46,10 @@ impl Eval for Statement {
 			Statement::Expression(value) => value.eval(environment),
 
 			Statement::Let { name, value } => {
+				if BUILTINS.contains(&*name) {
+					yeet!("Cannot override builtin value `{name}`");
+				}
+
 				let value = value.eval(Rc::clone(&environment))?;
 				let value = environment.set(name, value);
 				Ok(value)
@@ -75,7 +83,29 @@ impl Eval for Expression {
 			Expression::Int(int) => Value::Int(int),
 			Expression::Bool(bool) => Value::Bool(bool),
 			Expression::Identifier(identifier) if identifier == "null" => Value::Null,
-			Expression::Identifier(identifier) => environment.get(identifier),
+			Expression::Identifier(identifier) => environment.get(&identifier),
+			Expression::String(string) => Value::String(string),
+			Expression::Array(array) => Value::Array(
+				array
+					.into_iter()
+					.map(|value| value.eval(Rc::clone(&environment)))
+					.collect::<Result<Vec<_>>>()?,
+			),
+			Expression::Map(pairs) => {
+				let pairs = pairs
+					.into_iter()
+					.map(|(k, v)| {
+						let Value::String(k) = k.eval(Rc::clone(&environment))? else {
+							yeet!("Key in map must resolve to a string");
+						};
+
+						let v = v.eval(Rc::clone(&environment))?;
+						Ok((k, v))
+					})
+					.collect::<Result<HashMap<_, _>>>()?;
+
+				Value::Map(pairs)
+			}
 			Expression::Condition { condition, consequence, alternative } => {
 				let condition = match condition.eval(Rc::clone(&environment))? {
 					Value::Bool(bool) => bool,
@@ -99,7 +129,18 @@ impl Eval for Expression {
 				environment: Environment::with_outer(&environment),
 			},
 			Expression::Call { function, arguments } => {
-				let evaluated = function.eval(environment)?;
+				let evaluated = function.eval(Rc::clone(&environment))?;
+
+				if let Value::BuiltinFunction(function) = evaluated {
+					let arguments = arguments
+						.into_iter()
+						.map(|arg| arg.eval(Rc::clone(&environment)))
+						.collect::<Result<Vec<_>>>()?;
+
+					let result = function.call(arguments);
+					return Ok(result);
+				}
+
 				let Value::Function { parameters, body, environment: local_env } = evaluated else {
 					yeet!("Expected function before call expression but got `{evaluated:?}`");
 				};
@@ -109,7 +150,7 @@ impl Eval for Expression {
 
 				let arguments = arguments
 					.into_iter()
-					.map(|arg| dbg!(dbg!(arg).eval(Rc::clone(&local_env))))
+					.map(|arg| arg.eval(Rc::clone(&local_env)))
 					.collect::<Result<Vec<_>>>()?;
 
 				let n_params = parameters.len();
@@ -140,6 +181,17 @@ impl Eval for Expression {
 				let rhs = rhs.eval(environment)?;
 				Expression::eval_infix(operator, lhs, rhs)?
 			}
+			Expression::Index { lhs, idx } => {
+				let lhs = lhs.eval(Rc::clone(&environment))?;
+				let idx = idx.eval(environment)?;
+
+				match (lhs, idx) {
+					(Value::Array(array), Value::Int(idx)) => Expression::eval_array(array, idx)?,
+					(Value::Map(map), Value::String(key)) => Expression::eval_map(map, key)?,
+
+					_ => yeet!("Invalid index operator access"),
+				}
+			}
 		})
 	}
 }
@@ -160,7 +212,11 @@ impl Expression {
 			Value::Return(value) => return Self::eval_bang(*value),
 			Value::Int(int) => int == 0,
 			Value::Bool(bool) => !bool,
-			Value::Function { .. } => false,
+			Value::String(_)
+			| Value::Array(_)
+			| Value::Map(_)
+			| Value::Function { .. }
+			| Value::BuiltinFunction(_) => false,
 		})
 	}
 
@@ -169,7 +225,13 @@ impl Expression {
 		Ok(Value::Int(match rhs {
 			Value::Int(int) => -int,
 			Value::Return(value) => return Self::eval_neg(*value),
-			Value::Null | Value::Bool(_) | Value::Function { .. } => {
+			Value::Null
+			| Value::Bool(_)
+			| Value::String(_)
+			| Value::Array(_)
+			| Value::Map(_)
+			| Value::Function { .. }
+			| Value::BuiltinFunction(_) => {
 				yeet!("`{rhs:?}` cannot be negated");
 			}
 		}))
@@ -201,6 +263,66 @@ impl Expression {
 				InfixOperator::NotEqual => left != right,
 				operator => yeet!("Cannot perform operation `{operator:?}` on a boolean"),
 			}),
+			(Value::String(left), Value::String(right)) => Value::String(match operator {
+				InfixOperator::Add => format!("{left}{right}"),
+				InfixOperator::Sub => yeet!("Cannot subtract one string from another"),
+				InfixOperator::Mul => yeet!("Cannot multiply strings"),
+				InfixOperator::Div => yeet!("Cannot divide strings"),
+				InfixOperator::Modulo => yeet!("Cannot modulo strings"),
+				InfixOperator::Equal => return Ok(Value::Bool(left == right)),
+				InfixOperator::NotEqual => return Ok(Value::Bool(left != right)),
+				InfixOperator::GreaterThan => return Ok(Value::Bool(left > right)),
+				InfixOperator::LessThan => return Ok(Value::Bool(left < right)),
+				InfixOperator::GreaterThanOrEqual => return Ok(Value::Bool(left >= right)),
+				InfixOperator::LessThanOrEqual => return Ok(Value::Bool(left <= right)),
+			}),
+			// FIXME: THIS IS HORRIBLE
+			(Value::String(left), Value::Int(right)) => {
+				if let Ok(left) = left.parse::<i64>() {
+					Self::eval_infix(operator, Value::Int(left), Value::Int(right))?
+				} else {
+					match operator {
+						InfixOperator::Add => Value::String(format!("{left}{right}")),
+						InfixOperator::Sub => yeet!("Cannot perform subtraction on strings"),
+						InfixOperator::Mul => match right {
+							0 => Value::String(String::new()),
+							n @ 1.. => Value::String(left.repeat(n as usize)),
+							_ => yeet!("Cannot multiply a string by a negative number"),
+						},
+						InfixOperator::Div => yeet!("Cannot perform division on strings"),
+						InfixOperator::Modulo => yeet!("Cannot perform modulo on strings"),
+						InfixOperator::Equal
+						| InfixOperator::NotEqual
+						| InfixOperator::GreaterThan
+						| InfixOperator::LessThan
+						| InfixOperator::GreaterThanOrEqual
+						| InfixOperator::LessThanOrEqual => yeet!("Cannot compare string and number"),
+					}
+				}
+			}
+			(Value::Int(left), Value::String(right)) => {
+				if let Ok(right) = right.parse::<i64>() {
+					Self::eval_infix(operator, Value::Int(right), Value::Int(left))?
+				} else {
+					match operator {
+						InfixOperator::Add => Value::String(format!("{right}{left}")),
+						InfixOperator::Sub => yeet!("Cannot perform subtraction on strings"),
+						InfixOperator::Mul => match left {
+							0 => Value::String(String::new()),
+							n @ 1.. => Value::String(right.repeat(n as usize)),
+							_ => yeet!("Cannot multiply a string by a negative number"),
+						},
+						InfixOperator::Div => yeet!("Cannot perform division on strings"),
+						InfixOperator::Modulo => yeet!("Cannot perform modulo on strings"),
+						InfixOperator::Equal
+						| InfixOperator::NotEqual
+						| InfixOperator::GreaterThan
+						| InfixOperator::LessThan
+						| InfixOperator::GreaterThanOrEqual
+						| InfixOperator::LessThanOrEqual => yeet!("Cannot compare string and number"),
+					}
+				}
+			}
 			(Value::Int(int), Value::Bool(bool)) | (Value::Bool(bool), Value::Int(int)) => {
 				let int = int != 0;
 				Value::Bool(match operator {
@@ -215,5 +337,22 @@ impl Expression {
 			}
 			(lhs, rhs) => yeet!("Cannot evaluate `{lhs:?} {operator} {rhs:?}`"),
 		})
+	}
+
+	#[tracing::instrument(level = "DEBUG", ret)]
+	fn eval_array(mut array: Vec<Value>, mut idx: i64) -> Result<Value> {
+		Ok(match idx {
+			0.. if idx < array.len() as i64 => array.remove(idx as usize),
+			..=-1 => {
+				idx += array.len() as i64;
+				Self::eval_array(array, idx)?
+			}
+			_ => Value::Null,
+		})
+	}
+
+	#[tracing::instrument(level = "DEBUG", ret)]
+	fn eval_map(mut map: HashMap<String, Value>, key: String) -> Result<Value> {
+		Ok(map.remove(&key).unwrap_or(Value::Null))
 	}
 }

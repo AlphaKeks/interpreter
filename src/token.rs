@@ -35,6 +35,9 @@ pub enum Token {
 	/// `,`
 	Comma,
 
+	/// `:`
+	Colon,
+
 	/// `;`
 	Semicolon,
 
@@ -50,6 +53,12 @@ pub enum Token {
 	/// `}`
 	RightBrace,
 
+	/// `[`
+	LeftBracket,
+
+	/// `]`
+	RightBracket,
+
 	/// The end of the input.
 	Eof,
 
@@ -58,6 +67,9 @@ pub enum Token {
 
 	/// Any identifier.
 	Ident(String),
+
+	/// String literals
+	String(String),
 
 	/// The `fn` keyword.
 	Function,
@@ -97,6 +109,10 @@ impl Token {
 		Self::Illegal(illegal.into())
 	}
 
+	pub fn string(string: impl Into<String>) -> Self {
+		Self::String(string.into())
+	}
+
 	pub fn precedence(&self) -> Precedence {
 		self.into()
 	}
@@ -116,13 +132,17 @@ impl std::fmt::Display for Token {
 			Token::LessThan => write!(f, "<"),
 			Token::GreaterThan => write!(f, ">"),
 			Token::Comma => write!(f, ","),
+			Token::Colon => write!(f, ":"),
 			Token::Semicolon => write!(f, ";"),
 			Token::LeftParen => write!(f, "("),
 			Token::RightParen => write!(f, ")"),
 			Token::LeftBrace => write!(f, "{{"),
 			Token::RightBrace => write!(f, "}}"),
+			Token::LeftBracket => write!(f, "["),
+			Token::RightBracket => write!(f, "]"),
 			Token::Int(int) => write!(f, "{int}"),
 			Token::Ident(ident) => write!(f, "{ident}"),
+			Token::String(string) => write!(f, "\"{string}\""),
 			Token::Function => write!(f, "fn"),
 			Token::Let => write!(f, "let"),
 			Token::If => write!(f, "if"),

@@ -122,7 +122,7 @@ fn parse(mode: Mode) -> Result<()> {
 }
 
 fn interpret(mode: Mode) -> Result<()> {
-	let mut environment = Rc::new(Environment::default());
+	let mut environment = Rc::new(Environment::new_global());
 
 	loop {
 		print!("[{mode:?}] {PROMPT}");
@@ -137,7 +137,7 @@ fn interpret(mode: Mode) -> Result<()> {
 
 		match input.trim() {
 			"reset" => {
-				environment = Rc::new(Environment::default());
+				environment = Rc::new(Environment::new_global());
 				println!("Environment has been reset.");
 				continue;
 			}

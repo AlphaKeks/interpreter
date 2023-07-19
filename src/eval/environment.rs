@@ -1,17 +1,28 @@
 use {
+	super::{builtins, builtins::BuiltinFunction},
 	crate::Value,
 	std::{cell::RefCell, collections::HashMap, rc::Rc},
 };
 
 pub type VariableStore = Rc<RefCell<HashMap<String, Value>>>;
 
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct Environment {
 	pub(super) variables: VariableStore,
 	pub(super) outer: Option<Rc<Environment>>,
 }
 
 impl Environment {
+	pub fn new_global() -> Self {
+		let variables = HashMap::from_iter([
+			(builtins::Print.name(), Value::BuiltinFunction(Rc::new(builtins::Print))),
+			(builtins::Measure.name(), Value::BuiltinFunction(Rc::new(builtins::Measure))),
+			(builtins::First.name(), Value::BuiltinFunction(Rc::new(builtins::First))),
+		]);
+
+		Self { variables: Rc::new(RefCell::new(variables)), ..Default::default() }
+	}
+
 	pub fn with_outer(outer: &Rc<Self>) -> Self {
 		Self { outer: Some(Rc::clone(&outer)), ..Default::default() }
 	}

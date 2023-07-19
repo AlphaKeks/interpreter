@@ -129,9 +129,12 @@ impl Parser {
 			Token::Minus | Token::Bang => self.parse_prefix_expression()?,
 			Token::Int(int) => Expression::Int(*int),
 			Token::Ident(identifier) => Expression::Identifier(identifier.to_owned()),
+			Token::String(string) => Expression::String(string.to_owned()),
 			Token::True => Expression::Bool(true),
 			Token::False => Expression::Bool(false),
 			Token::LeftParen => self.parse_grouped_expression()?,
+			Token::LeftBracket => self.parse_array_expression()?,
+			Token::LeftBrace => self.parse_map_expression()?,
 			Token::If => self.parse_if_expression()?,
 			Token::Function => self.parse_function()?,
 			token => yeet!("We don't know how to parse `{token:?}`"),
@@ -155,6 +158,54 @@ impl Parser {
 		let expression = self.parse_expression(Precedence::Lowest)?;
 		assert_token!(peek, self, Token::RightParen);
 		Ok(expression)
+	}
+
+	#[tracing::instrument(level = "DEBUG", ret)]
+	fn parse_array_expression(&mut self) -> Result<Expression> {
+		let mut array = Vec::new();
+
+		self.step()?;
+		if self.current_token == Token::RightBracket {
+			return Ok(Expression::Array(array));
+		}
+
+		array.push(self.parse_expression(Precedence::Lowest)?);
+		while self.peek_token == Token::Comma {
+			self.step()?;
+			self.step()?;
+			array.push(self.parse_expression(Precedence::Lowest)?);
+		}
+
+		assert_token!(peek, self, Token::RightBracket);
+
+		Ok(Expression::Array(array))
+	}
+
+	#[tracing::instrument(level = "DEBUG", ret)]
+	fn parse_map_expression(&mut self) -> Result<Expression> {
+		let mut pairs = Vec::new();
+
+		while self.peek_token != Token::RightBrace {
+			self.step()?;
+
+			let key = self.parse_expression(Precedence::Lowest)?;
+
+			assert_token!(peek, self, Token::Colon);
+			self.step()?;
+
+			let value = self.parse_expression(Precedence::Lowest)?;
+
+			pairs.push((key, value));
+			match &self.peek_token {
+				Token::RightBrace => {}
+				Token::Comma => self.step()?,
+				token => yeet!("Unexpected token `{token:?}`"),
+			};
+		}
+
+		assert_token!(peek, self, Token::RightBrace);
+
+		Ok(Expression::Map(pairs))
 	}
 
 	#[tracing::instrument(level = "DEBUG", ret)]
@@ -244,6 +295,20 @@ impl Parser {
 	}
 
 	#[tracing::instrument(level = "DEBUG", ret)]
+	fn parse_index_expression(&mut self, lhs: Expression) -> Result<Expression> {
+		self.step()?;
+
+		let expression = Expression::Index {
+			lhs: Box::new(lhs),
+			idx: Box::new(self.parse_expression(Precedence::Lowest)?),
+		};
+
+		assert_token!(peek, self, Token::RightBracket);
+
+		Ok(expression)
+	}
+
+	#[tracing::instrument(level = "DEBUG", ret)]
 	fn parse_call_arguments(&mut self) -> Result<Vec<Expression>> {
 		let mut arguments = Vec::new();
 
@@ -280,6 +345,7 @@ impl Parser {
 			}
 			Token::GreaterThan => InfixOperator::GreaterThan,
 			Token::LeftParen => return Ok(Ok(self.parse_call(lhs)?)),
+			Token::LeftBracket => return Ok(Ok(self.parse_index_expression(lhs)?)),
 			_ => return Ok(Err(lhs)),
 		};
 

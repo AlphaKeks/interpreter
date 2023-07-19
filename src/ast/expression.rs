@@ -8,6 +8,9 @@ pub enum Expression {
 	Int(i64),
 	Bool(bool),
 	Identifier(String),
+	String(String),
+	Array(Vec<Expression>),
+	Map(Vec<(Expression, Expression)>),
 	Condition {
 		condition: Box<Expression>,
 		consequence: Vec<Statement>,
@@ -29,6 +32,10 @@ pub enum Expression {
 		operator: InfixOperator,
 		lhs: Box<Expression>,
 		rhs: Box<Expression>,
+	},
+	Index {
+		lhs: Box<Expression>,
+		idx: Box<Expression>,
 	},
 }
 
@@ -62,6 +69,25 @@ impl std::fmt::Display for Expression {
 			Expression::Int(int) => write!(f, "{int}"),
 			Expression::Bool(bool) => write!(f, "{bool}"),
 			Expression::Identifier(identifier) => write!(f, "{identifier}"),
+			Expression::String(string) => write!(f, "\"{string}\""),
+			Expression::Array(array) => write!(
+				f,
+				"[{}]",
+				array
+					.iter()
+					.map(|expr| expr.to_string())
+					.collect::<Vec<_>>()
+					.join(", ")
+			),
+			Expression::Map(pairs) => {
+				write!(f, "{{\n")?;
+
+				for (k, v) in pairs {
+					write!(f, "  {k} => {v},\n")?;
+				}
+
+				write!(f, "}}")
+			}
 			Expression::Condition { condition, consequence, alternative } => {
 				write!(f, "if ({condition}) {{ ")?;
 
@@ -103,6 +129,7 @@ impl std::fmt::Display for Expression {
 			}
 			Expression::Prefix { operator, rhs } => write!(f, "({operator}{rhs})"),
 			Expression::Infix { operator, lhs, rhs } => write!(f, "({lhs} {operator} {rhs})"),
+			Expression::Index { lhs, idx } => write!(f, "({lhs}[{idx}])"),
 		}
 	}
 }
