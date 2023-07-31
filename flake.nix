@@ -14,7 +14,7 @@
 		{
 			devShell = pkgs.mkShell {
 				nativeBuildInputs = with pkgs; [ rustup ];
-				buildInputs = with pkgs; [ ];
+				buildInputs = with pkgs; [ cargo-watch cargo-insta ];
 				shellHook = ''
 					rustup toolchain install stable
 					rustup toolchain install --profile minimal nightly

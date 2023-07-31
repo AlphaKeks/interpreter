@@ -1,6 +1,6 @@
 [package]
 name = "monkey"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["AlphaKeks <alphakeks@dawn.sh>"]
 edition = "2021"
 readme = "./README.md"
@@ -8,13 +8,5 @@ license-file = "./LICENSE"
 publish = false
 
 [dependencies]
-color-eyre = "0.6.2"
-tracing = "0.1.37"
-tracing-subscriber = { version = "0.3.17", features = ["env-filter", "time"] }
-time = { version = "0.3.23", features = ["macros"] }
-clap = { version = "4.3.12", features = ["derive"] }
-lazy_static = "1.4.0"
 
 [dev-dependencies]
-ctor = "0.2.4"
-pretty_assertions = "1.4.0"
